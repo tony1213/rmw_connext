@@ -75,7 +75,6 @@ rmw_create_service(
   }
 
   // Past this point, a failure results in unrolling code in the goto fail block.
-  DDS_TypeSupportQosPolicy ts;
   DDS_DataReaderQos datareader_qos;
   DDS_DataWriterQos datawriter_qos;
   DDS_SubscriberQos subscriber_qos;
@@ -96,15 +95,6 @@ rmw_create_service(
   char * request_partition_str = nullptr;
   char * response_partition_str = nullptr;
   char * service_str = nullptr;
-
-  buf = rmw_allocate(sizeof(ConnextStaticServiceInfo));
-  if (!buf) {
-    RMW_SET_ERROR_MSG("failed to allocate memory");
-    goto fail;
-  }
-  // Use a placement new to construct the ConnextStaticServiceInfo in the preallocated buffer.
-  RMW_TRY_PLACEMENT_NEW(service_info, buf, goto fail, ConnextStaticServiceInfo, )
-  buf = nullptr;  // Only free the service_info pointer; don't need the buf pointer anymore.
 
   // Begin initializing elements.
   service = rmw_service_allocate();
@@ -133,13 +123,6 @@ rmw_create_service(
   {
     goto fail;
   }
-  // Set the plugin typesupport to the connext info
-  // If this is true, a raw CDR Stream is enabled
-  //ts.plugin_data = &service_info->raw_stream_subscriber;
-  //ts.cdr_padding_kind = DDS_AUTO_CDR_PADDING;
-  //datareader_qos.type_support = ts;
-  //datawriter_qos.type_support = ts;
-  (void) ts;
 
   replier = callbacks->create_replier(
     participant, service_str, &datareader_qos, &datawriter_qos,
@@ -148,8 +131,6 @@ rmw_create_service(
     &rmw_allocate);
   DDS_String_free(service_str);
   service_str = nullptr;
-
-  fprintf(stderr, "created replier\n");
   if (!replier) {
     RMW_SET_ERROR_MSG("failed to create replier");
     goto fail;
@@ -210,6 +191,14 @@ rmw_create_service(
   // update attached publisher
   dds_publisher->set_qos(publisher_qos);
 
+  buf = rmw_allocate(sizeof(ConnextStaticServiceInfo));
+  if (!buf) {
+    RMW_SET_ERROR_MSG("failed to allocate memory");
+    goto fail;
+  }
+  // Use a placement new to construct the ConnextStaticServiceInfo in the preallocated buffer.
+  RMW_TRY_PLACEMENT_NEW(service_info, buf, goto fail, ConnextStaticServiceInfo, )
+  buf = nullptr;  // Only free the service_info pointer; don't need the buf pointer anymore.
   service_info->replier_ = replier;
   service_info->callbacks_ = callbacks;
   service_info->request_datareader_ = request_datareader;
